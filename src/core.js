@@ -162,12 +162,12 @@ luckysheet.create = function (setting) {
     const loadingObj = luckysheetlodingHTML("#" + container);
     Store.loadingObj = loadingObj;
 
-    if (loadurl == "") {
+    if (loadurl === "") {
         sheetmanage.initialjfFile(menu, title);
         // luckysheetsizeauto();
         initialWorkBook();
     } else {
-        $.post(loadurl, { gridKey: server.gridKey }, function (d) {
+        $.get(loadurl, { gridKey: server.gridKey }, function (d) {
             let data = new Function("return " + d)();
             Store.luckysheetfile = data;
 
