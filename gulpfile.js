@@ -130,11 +130,10 @@ function clean() {
 }
 
 // proxy middleware
-const apiProxy = createProxyMiddleware('/luckysheet/', {
-    target: 'http://localhost:8080/', // set your server address
+const apiProxy = createProxyMiddleware('/miqrosheet/', {
+    target: 'http://localhost:8081/', // set your server address
     changeOrigin: true, // for vhosted sites
     ws: true, // proxy websockets
-    
 });
 
 // Static server

@@ -1,5 +1,6 @@
 import { seriesLoadScripts, loadLinks, $$, arrayRemoveItem } from "../../utils/util";
-import { luckysheetPrint } from "./print";
+// import { luckysheetPrint } from "./print.css";
+import "./print.css"
 import Store from "../../store";
 
 // Dynamically load dependent scripts and styles
