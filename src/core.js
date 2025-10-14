@@ -167,7 +167,7 @@ luckysheet.create = function (setting) {
         // luckysheetsizeauto();
         initialWorkBook();
     } else {
-        $.get(loadurl, { gridKey: server.gridKey }, function (d) {
+        $.post(loadurl, { gridKey: server.gridKey }, function (d) {
             let data = new Function("return " + d)();
             Store.luckysheetfile = data;
 
@@ -253,5 +253,7 @@ luckysheet.locales = locales;
 
 // 获取条件格式渲染的单元格数量
 luckysheet.getConditionFormatCells = getConditionFormatCells;
+
+luckysheet.server = server;
 
 export { luckysheet };

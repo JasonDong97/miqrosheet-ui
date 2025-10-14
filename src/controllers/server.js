@@ -20,6 +20,8 @@ import dayjs from "dayjs";
 import luckysheetConfigsetting from "./luckysheetConfigsetting";
 import { customImageUpdate } from "./imageUpdateCtrl";
 import method from "../global/method";
+import Cookies from "js-cookie";
+
 
 const server = {
   gridKey: null,
@@ -30,7 +32,7 @@ const server = {
   loadSheetUrl: null,
   retryTimer: null,
   allowUpdate: false, //共享编辑模式
-  historyParam: function (data, sheetIndex, range) {
+  historyParam: function(data, sheetIndex, range) {
     let _this = this;
 
     let r1 = range.row[0],
@@ -86,7 +88,7 @@ const server = {
       }
     }
   },
-  saveParam: function (type, index, value, params) {
+  saveParam: function(type, index, value, params) {
     let _this = this;
 
     if (!_this.allowUpdate) {
@@ -153,7 +155,7 @@ const server = {
         customImageUpdate(
           customImageUpdateMethodConfig.method,
           customImageUpdateMethodConfig.url,
-          d
+          d,
         )
           .then(data => {
             console.log(data);
@@ -173,33 +175,38 @@ const server = {
   },
   websocket: null,
   wxErrorCount: 0,
-  openWebSocket: function () {
+  // 设置 contextPath 和 accessToken，方便在插件中调用接口
+  contextPath: "/miqrosheet",
+
+  accessToken: Cookies.get("access_token"),
+
+  openWebSocket: function() {
     let _this = this;
 
     if ("WebSocket" in window) {
-      let wxUrl =
-        _this.updateUrl + "?t=111&g=" + encodeURIComponent(_this.gridKey);
+      let wsUrl;
+      let params = "t=" + _this.accessToken + "&g=" + encodeURIComponent(_this.gridKey);
       if (_this.updateUrl.indexOf("?") > -1) {
-        wxUrl =
-          _this.updateUrl + "&t=111&g=" + encodeURIComponent(_this.gridKey);
+        wsUrl = _this.updateUrl + "&" + params;
+      }else {
+        wsUrl = _this.updateUrl + "?" + params;
       }
 
-      _this.websocket = new WebSocket(wxUrl);
-
+      _this.websocket = new WebSocket(wsUrl);
       //连接建立时触发
-      _this.websocket.onopen = function () {
+      _this.websocket.onopen = function() {
         console.info(locale().websocket.success);
         hideloading();
         _this.wxErrorCount = 0;
 
         //防止websocket长时间不发送消息导致断连
-        _this.retryTimer = setInterval(function () {
+        _this.retryTimer = setInterval(function() {
           _this.websocket.send("rub");
         }, 60000);
       };
 
       //客户端接收服务端数据时触发
-      _this.websocket.onmessage = function (result) {
+      _this.websocket.onmessage = function(result) {
         Store.result = result;
         let data = new Function("return " + result.data)();
         method.createHookFunction("cooperativeMessage", data);
@@ -222,7 +229,7 @@ const server = {
           //send 成功或失败
           const oldIndex = data.data.v.index;
           const sheetToUpdate = Store.luckysheetfile.filter(
-            sheet => sheet.index === oldIndex
+            sheet => sheet.index === oldIndex,
           )[0];
           if (sheetToUpdate !== null) {
             setTimeout(() => {
@@ -233,11 +240,11 @@ const server = {
               $(`#luckysheet-sheets-item${oldIndex}`).attr("data-index", index);
               $(`#luckysheet-sheets-item${oldIndex}`).prop(
                 "id",
-                `luckysheet-sheets-item${index}`
+                `luckysheet-sheets-item${index}`,
               );
               $(`#luckysheet-datavisual-selection-set-${oldIndex}`).prop(
                 "id",
-                `luckysheet-datavisual-selection-set-${index}`
+                `luckysheet-datavisual-selection-set-${index}`,
               );
             }, 1);
           }
@@ -269,7 +276,7 @@ const server = {
           let flag = Store.cooperativeEdit.changeCollaborationSize.some(
             value1 => {
               return value1.id == id;
-            }
+            },
           );
           if (flag) {
             Store.cooperativeEdit.changeCollaborationSize.forEach(val => {
@@ -402,7 +409,7 @@ const server = {
       };
 
       //通信发生错误时触发
-      _this.websocket.onerror = function () {
+      _this.websocket.onerror = function() {
         _this.wxErrorCount++;
 
         if (_this.wxErrorCount > 3) {
@@ -414,7 +421,7 @@ const server = {
       };
 
       //连接关闭时触发
-      _this.websocket.onclose = function (e) {
+      _this.websocket.onclose = function(e) {
         console.info(locale().websocket.close);
         if (e.code === 1000) {
           clearInterval(_this.retryTimer);
@@ -427,13 +434,12 @@ const server = {
       alert(locale().websocket.support);
     }
   },
-  wsUpdateMsg: function (item) {
+
+  wsUpdateMsg: function(item) {
     let type = item.t,
       index = item.i,
       value = item.v;
-
     let file = Store.luckysheetfile[getSheetIndex(index)];
-
     if (
       [
         "v",
@@ -476,7 +482,7 @@ const server = {
           luckysheetPostil.buildPs(r, c, null);
         }
 
-        setTimeout(function () {
+        setTimeout(function() {
           luckysheetrefreshgrid();
         }, 1);
       }
@@ -521,7 +527,7 @@ const server = {
           }
         }
 
-        setTimeout(function () {
+        setTimeout(function() {
           luckysheetrefreshgrid();
         }, 1);
       }
@@ -560,7 +566,7 @@ const server = {
           jfrefreshgrid_rhcw(Store.flowdata.length, Store.flowdata[0].length);
         }
 
-        setTimeout(function () {
+        setTimeout(function() {
           luckysheetrefreshgrid();
         }, 1);
       }
@@ -577,15 +583,15 @@ const server = {
       } else if (k == "color") {
         //工作表颜色
         let currentSheetItem = $(
-          "#luckysheet-sheet-container-c #luckysheet-sheets-item" + index
+          "#luckysheet-sheet-container-c #luckysheet-sheets-item" + index,
         );
         currentSheetItem.find(".luckysheet-sheets-item-color").remove();
 
         if (value != null || value != "") {
           currentSheetItem.append(
-            '<div class="luckysheet-sheets-item-color" style=" position: absolute; width: 100%; height: 3px; bottom: 0px; left: 0px; background-color: ' +
-              value +
-              ';"></div>'
+            "<div class=\"luckysheet-sheets-item-color\" style=\" position: absolute; width: 100%; height: 3px; bottom: 0px; left: 0px; background-color: " +
+            value +
+            ";\"></div>",
           );
         }
       } else if (k == "pivotTable") {
@@ -602,32 +608,32 @@ const server = {
           const locale_freezen = _locale.freezen;
           if (file["freezen"].horizontal == null) {
             $("#luckysheet-freezen-btn-horizontal").html(
-              '<i class="fa fa-list-alt"></i> ' + locale_freezen.freezenRow
+              "<i class=\"fa fa-list-alt\"></i> " + locale_freezen.freezenRow,
             );
             luckysheetFreezen.freezenhorizontaldata = null;
             $("#luckysheet-freezebar-horizontal").hide();
           } else {
             luckysheetFreezen.createFreezenHorizontal(
               file["freezen"].horizontal.freezenhorizontaldata,
-              file["freezen"].horizontal.top
+              file["freezen"].horizontal.top,
             );
           }
 
           if (file["freezen"].vertical == null) {
             $("#luckysheet-freezen-btn-vertical").html(
-              '<i class="fa fa-indent"></i> ' + locale_freezen.freezenColumn
+              "<i class=\"fa fa-indent\"></i> " + locale_freezen.freezenColumn,
             );
             luckysheetFreezen.freezenverticaldata = null;
             $("#luckysheet-freezebar-vertical").hide();
           } else {
             luckysheetFreezen.createFreezenVertical(
               file["freezen"].vertical.freezenverticaldata,
-              file["freezen"].vertical.left
+              file["freezen"].vertical.left,
             );
           }
 
           luckysheetFreezen.createAssistCanvas();
-          setTimeout(function () {
+          setTimeout(function() {
             luckysheetrefreshgrid();
           }, 1);
         }
@@ -644,14 +650,14 @@ const server = {
       } else if (k == "luckysheet_conditionformat_save") {
         //条件格式
         if (index == Store.currentSheetIndex) {
-          setTimeout(function () {
+          setTimeout(function() {
             luckysheetrefreshgrid();
           }, 1);
         }
       } else if (k == "luckysheet_alternateformat_save") {
         //交替颜色
         if (index == Store.currentSheetIndex) {
-          setTimeout(function () {
+          setTimeout(function() {
             luckysheetrefreshgrid();
           }, 1);
         }
@@ -664,7 +670,7 @@ const server = {
       } else if (k == "dynamicArray") {
         //动态数组
         if (index == Store.currentSheetIndex) {
-          setTimeout(function () {
+          setTimeout(function() {
             luckysheetrefreshgrid();
           }, 1);
         }
@@ -723,7 +729,7 @@ const server = {
       //     }
       // }
 
-      setTimeout(function () {
+      setTimeout(function() {
         luckysheetrefreshgrid();
       }, 1);
     } else if (type == "drc") {
@@ -786,7 +792,7 @@ const server = {
         Store.config["merge"] = mc;
         Store.config["borderInfo"] = borderInfo;
 
-        setTimeout(function () {
+        setTimeout(function() {
           luckysheetrefreshgrid();
         }, 1);
       }
@@ -827,23 +833,23 @@ const server = {
           if (st_i == 0) {
             new Function(
               "data",
-              "return " + "data.unshift(" + arr.join(",") + ")"
+              "return " + "data.unshift(" + arr.join(",") + ")",
             )(data);
           } else {
             new Function(
               "data",
-              "return " + "data.splice(" + st_i + ", 0, " + arr.join(",") + ")"
+              "return " + "data.splice(" + st_i + ", 0, " + arr.join(",") + ")",
             )(data);
           }
         } else {
           new Function(
             "data",
             "return " +
-              "data.splice(" +
-              (st_i + 1) +
-              ", 0, " +
-              arr.join(",") +
-              ")"
+            "data.splice(" +
+            (st_i + 1) +
+            ", 0, " +
+            arr.join(",") +
+            ")",
           )(data);
         }
       } else {
@@ -878,7 +884,7 @@ const server = {
         Store.config["merge"] = mc;
         Store.config["borderInfo"] = borderInfo;
 
-        setTimeout(function () {
+        setTimeout(function() {
           luckysheetrefreshgrid();
         }, 1);
       }
@@ -910,9 +916,9 @@ const server = {
       if (index == Store.currentSheetIndex) {
         $(
           "#luckysheet-filter-selected-sheet" +
-            Store.currentSheetIndex +
-            ", #luckysheet-filter-options-sheet" +
-            Store.currentSheetIndex
+          Store.currentSheetIndex +
+          ", #luckysheet-filter-options-sheet" +
+          Store.currentSheetIndex,
         ).remove();
         $("#luckysheet-filter-menu, #luckysheet-filter-submenu").hide();
       }
@@ -931,9 +937,9 @@ const server = {
       let colorset = "";
       if (value.color != null) {
         colorset =
-          '<div class="luckysheet-sheets-item-color" style=" position: absolute; width: 100%; height: 3px; bottom: 0px; left: 0px; background-color: ' +
+          "<div class=\"luckysheet-sheets-item-color\" style=\" position: absolute; width: 100%; height: 3px; bottom: 0px; left: 0px; background-color: " +
           value.color +
-          ';"></div>';
+          ";\"></div>";
       }
 
       $("#luckysheet-sheet-container-c").append(
@@ -943,12 +949,12 @@ const server = {
           name: value.name,
           style: "",
           colorset: colorset,
-        })
+        }),
       );
       $("#luckysheet-cell-main").append(
-        '<div id="luckysheet-datavisual-selection-set-' +
-          value.index +
-          '" class="luckysheet-datavisual-selection-set"></div>'
+        "<div id=\"luckysheet-datavisual-selection-set-" +
+        value.index +
+        "\" class=\"luckysheet-datavisual-selection-set\"></div>",
       );
 
       // *添加sheet之后,要判断是否需要显示sheet滚动按钮
@@ -974,13 +980,13 @@ const server = {
           name: copyjson.name,
           style: "",
           colorset: "",
-        })
+        }),
       );
       $("#luckysheet-sheets-item" + copyjson.index).insertAfter(copyobject);
       $("#luckysheet-cell-main").append(
-        '<div id="luckysheet-datavisual-selection-set-' +
-          copyjson.index +
-          '" class="luckysheet-datavisual-selection-set"></div>'
+        "<div id=\"luckysheet-datavisual-selection-set-" +
+        copyjson.index +
+        "\" class=\"luckysheet-datavisual-selection-set\"></div>",
       );
     } else if (type == "shd") {
       //删除sheet
@@ -993,12 +999,12 @@ const server = {
             Store.luckysheetfile[sheetmanage.getSheetIndex(index)].hide = 1;
 
             let luckysheetcurrentSheetitem = $(
-              "#luckysheet-sheets-item" + index
+              "#luckysheet-sheets-item" + index,
             );
             luckysheetcurrentSheetitem.hide();
 
             $("#luckysheet-sheet-area div.luckysheet-sheets-item").removeClass(
-              "luckysheet-sheets-item-active"
+              "luckysheet-sheets-item-active",
             );
 
             let indicator = luckysheetcurrentSheetitem.nextAll(":visible");
@@ -1011,7 +1017,7 @@ const server = {
                 .data("index");
             }
             $("#luckysheet-sheets-item" + indicator).addClass(
-              "luckysheet-sheets-item-active"
+              "luckysheet-sheets-item-active",
             );
 
             sheetmanage.changeSheetExec(indicator);
@@ -1044,9 +1050,9 @@ const server = {
           let colorset = "";
           if (value.color != null) {
             colorset =
-              '<div class="luckysheet-sheets-item-color" style=" position: absolute; width: 100%; height: 3px; bottom: 0px; left: 0px; background-color: ' +
+              "<div class=\"luckysheet-sheets-item-color\" style=\" position: absolute; width: 100%; height: 3px; bottom: 0px; left: 0px; background-color: " +
               datav.color +
-              ';"></div>';
+              ";\"></div>";
           }
 
           $("#luckysheet-sheet-container-c").append(
@@ -1056,12 +1062,12 @@ const server = {
               name: datav.name,
               style: "",
               colorset: colorset,
-            })
+            }),
           );
           $("#luckysheet-cell-main").append(
-            '<div id="luckysheet-datavisual-selection-set-' +
-              datav.index +
-              '" class="luckysheet-datavisual-selection-set"></div>'
+            "<div id=\"luckysheet-datavisual-selection-set-" +
+            datav.index +
+            "\" class=\"luckysheet-datavisual-selection-set\"></div>",
           );
           break;
         }
@@ -1077,7 +1083,7 @@ const server = {
 
         if (index == Store.currentSheetIndex) {
           $("#luckysheet-sheets-item" + cur).addClass(
-            "luckysheet-sheets-item-active"
+            "luckysheet-sheets-item-active",
           );
           sheetmanage.changeSheetExec(cur);
         }
@@ -1123,7 +1129,7 @@ const server = {
           value.myLeft,
           value.myTop,
           value.myindexrank1,
-          true
+          true,
         );
       } else if (op == "xy" || op == "wh" || op == "update") {
         //移动 缩放 更新
@@ -1155,7 +1161,7 @@ const server = {
             $("#" + cid).remove();
             sheetmanage.delChart(
               $("#" + cid).attr("chart_id"),
-              $("#" + cid).attr("sheetIndex")
+              $("#" + cid).attr("sheetIndex"),
             );
 
             return;
@@ -1170,7 +1176,7 @@ const server = {
     }
   },
   multipleIndex: 0,
-  multipleRangeShow: function (id, name, r, c, value) {
+  multipleRangeShow: function(id, name, r, c, value) {
     let _this = this;
     const fullName = name;
 
@@ -1243,23 +1249,23 @@ const server = {
       }px;border: 1px solid ${luckyColor[_this.multipleIndex]};z-index: 15;">
 
 								<div class="username" style="height: 19px;line-height:19px;width: max-content;position: absolute;bottom: ${
-                  row - row_pre - 1
-                }px;right: 0;background-color: ${
+        row - row_pre - 1
+      }px;right: 0;background-color: ${
         luckyColor[_this.multipleIndex]
       };color:#ffffff;padding:0 10px;">
 								${name}
 								</div>
 
 								<div style="width: 100%;height: 100%;position: absolute;top: 0;right: 0;bottom: 0;left: 0;opacity: 0.03;background-color: ${
-                  luckyColor[_this.multipleIndex]
-                }">
+        luckyColor[_this.multipleIndex]
+      }">
 								</div>
 
 							</div>`;
       // 正在输入
 
       $(itemHtml).appendTo(
-        $("#luckysheet-cell-main #luckysheet-multipleRange-show")
+        $("#luckysheet-cell-main #luckysheet-multipleRange-show"),
       );
 
       _this.multipleIndex++;
@@ -1280,18 +1286,18 @@ const server = {
   imagesubmitInterval: 5000,
   submitdatalimit: 50,
   submitcompresslimit: 1000,
-  checksubmit: function (data) {
+  checksubmit: function(data) {
     let _this = this;
     //clearTimeout(_this.requestTimeOut);
 
     _this.submitTimeout();
 
     clearTimeout(_this.imageRequestTimeout);
-    _this.imageRequestTimeout = setTimeout(function () {
+    _this.imageRequestTimeout = setTimeout(function() {
       _this.imageRequest();
     }, _this.imagesubmitInterval);
   },
-  submitTimeout: function () {
+  submitTimeout: function() {
     let _this = this;
     clearTimeout(_this.requestTimeOut);
 
@@ -1308,7 +1314,7 @@ const server = {
 
     // }
 
-    _this.requestTimeOut = setTimeout(function () {
+    _this.requestTimeOut = setTimeout(function() {
       _this.submitTimeout();
     }, _this.submitInterval);
   },
@@ -1316,12 +1322,12 @@ const server = {
   requestlast: null,
   firstchange: true,
   requestTimeOut: null,
-  request: function () {
+  request: function() {
     let _this = this;
     let key = this.gridKey;
     let cahce_key = key + "__qkcache";
 
-    _this.cachelocaldata(function (cahce_key, params) {
+    _this.cachelocaldata(function(cahce_key, params) {
       if (params.length == 0) {
         return;
       }
@@ -1337,26 +1343,26 @@ const server = {
       //console.log(params);
       // console.log("request");
       if (_this.updateUrl != "") {
-        $.get(
+        $.post(
           _this.updateUrl,
           { compress: iscommpress, gridKey: _this.gridKey, data: params },
-          function (data) {
+          function(data) {
             let re = new Function("return " + data)();
             if (re.status) {
               $("#luckysheet_info_detail_update").html(
-                "最近存档时间:" + dayjs().format("M-D H:m:s")
+                "最近存档时间:" + dayjs().format("M-D H:m:s"),
               );
               $("#luckysheet_info_detail_save").html("同步成功");
               _this.clearcachelocaldata();
             } else {
               $("#luckysheet_info_detail_save").html(
-                "<span style='color:#ff2121'>同步失败</span>"
+                "<span style='color:#ff2121'>同步失败</span>",
               );
               _this.restorecachelocaldata();
             }
             _this.requestlast = dayjs();
             _this.requestLock = false;
-          }
+          },
         );
       }
     });
@@ -1364,7 +1370,7 @@ const server = {
   imageRequestLast: null,
   imageRequestLock: false,
   imageRequestTimeout: null,
-  imageRequest: function () {
+  imageRequest: function() {
     let _this = this;
 
     html2canvas(
@@ -1372,7 +1378,7 @@ const server = {
         .find(".luckysheet-grid-window")
         .get(0),
       {
-        onrendered: function (canvas) {
+        onrendered: function(canvas) {
           //let imgcut = $("#luckysheet-cell-main").find(".luckysheet-grid-window");
           //document.body.appendChild(canvas);
           let old = $(canvas).appendTo("body");
@@ -1409,7 +1415,7 @@ const server = {
           _this.imageRequestLock = true;
           // let data1 = pako.gzip(encodeURIComponent(JSON.stringify({"t":"thumb", "img": base64, "curindex":curindex })), { to: "string" });
           let data1 = encodeURIComponent(
-            JSON.stringify({ t: "thumb", img: base64, curindex: curindex })
+            JSON.stringify({ t: "thumb", img: base64, curindex: curindex }),
           );
           old.remove();
           //console.log("缩略图", _this.imageRequestLast,base64);
@@ -1418,25 +1424,25 @@ const server = {
             $.post(
               _this.updateImageUrl,
               { compress: false, gridKey: _this.gridKey, data: data1 },
-              function (data) {
+              function(data) {
                 let re = new Function("return " + data)();
                 if (re.status) {
                   imageRequestLast = dayjs();
                 } else {
                   $("#luckysheet_info_detail_save").html(
-                    "<span style='color:#ff2121'>网络不稳定</span>"
+                    "<span style='color:#ff2121'>网络不稳定</span>",
                   );
                 }
                 _this.imageRequestLock = true;
-              }
+              },
             );
           }
         },
-      }
+      },
     );
   },
   localdata: [],
-  matchOpt: function (v, d) {
+  matchOpt: function(v, d) {
     for (let vitem in v) {
       if (
         vitem == "t" &&
@@ -1460,7 +1466,7 @@ const server = {
 
     return true;
   },
-  deleteRepeatOpt: function (data, value) {
+  deleteRepeatOpt: function(data, value) {
     //let d = $.extend(true, [], data); //原来
     let d = data;
     let _this = this;
@@ -1496,11 +1502,11 @@ const server = {
 
     return ret;
   },
-  setlocaldata: function (value, func) {
+  setlocaldata: function(value, func) {
     let key = this.gridKey;
     //store.push(key, data);
     let _this = this;
-    _this.getlocaldata(function (data) {
+    _this.getlocaldata(function(data) {
       if (data == null) {
         data = [];
       }
@@ -1526,7 +1532,7 @@ const server = {
       // });
     });
   },
-  getlocaldata: function (func) {
+  getlocaldata: function(func) {
     let key = this.gridKey;
     //return store.get(key);
     func(this.localdata);
@@ -1534,7 +1540,7 @@ const server = {
     //     func(readValue);
     // });
   },
-  clearlocaldata: function (func) {
+  clearlocaldata: function(func) {
     let key = this.gridKey;
     //store.remove(key);
     this.localdata = [];
@@ -1543,7 +1549,7 @@ const server = {
     //     func();
     // });
   },
-  cachelocaldata: function (func) {
+  cachelocaldata: function(func) {
     let key = this.gridKey;
     let _this = this;
     let cahce_key = key + "__qkcache";
@@ -1577,8 +1583,8 @@ const server = {
       return;
     }
     //console.log(key, cahce_key,updatedata);
-    _this.clearlocaldata(function () {
-      localforage.setItem(cahce_key, updatedata).then(function () {
+    _this.clearlocaldata(function() {
+      localforage.setItem(cahce_key, updatedata).then(function() {
         func(cahce_key, updatedata);
       });
     });
@@ -1596,23 +1602,23 @@ const server = {
     //     });
     // });
   },
-  clearcachelocaldata: function (func) {
+  clearcachelocaldata: function(func) {
     let key = this.gridKey;
     let cahce_key = key + "__qkcache";
     //store.remove(key);
-    localforage.removeItem(cahce_key, function (err, value) {
+    localforage.removeItem(cahce_key, function(err, value) {
       if (func && typeof func == "function") {
         func();
       }
     });
   },
-  restorecachelocaldata: function (func) {
+  restorecachelocaldata: function(func) {
     let key = this.gridKey;
     let cahce_key = key + "__qkcache";
     let _this = this;
-    localforage.getItem(cahce_key).then(function (readValue) {
+    localforage.getItem(cahce_key).then(function(readValue) {
       let updatedata = readValue;
-      _this.getlocaldata(function (data) {
+      _this.getlocaldata(function(data) {
         if (data == null) {
           data = [];
         }
@@ -1632,7 +1638,7 @@ const server = {
       });
     });
   },
-  keepHighLightBox: function () {
+  keepHighLightBox: function() {
     Store.cooperativeEdit.checkoutData.forEach(value => {
       if (value.index == Store.currentSheetIndex) {
         if (value.op === "enterEdit") {
@@ -1641,7 +1647,7 @@ const server = {
             value.username,
             value.r,
             value.c,
-            value.op
+            value.op,
           );
         } else {
           server.multipleRangeShow(value.id, value.username, value.r, value.c);

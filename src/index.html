@@ -46,25 +46,33 @@
     // According to the browser language
     var lang = luckysheetDemoUtil.language() === "zh" ? "zh" : "en";
     var gridKey = luckysheetDemoUtil.getRequest().gridKey; // workbook id for collaborative editing, or directly define
-    var sid = luckysheetDemoUtil.getRequest().sid;  // here
     var options = null;
 
-    if (!gridKey || !sid) {
-      alert("Please enter the parameters 'sid' and 'gridKey' in the url");
+    // test
+    gridKey = "1040ebbb101f44f5b2759983dafc652e";
+    if (!gridKey) {
+      alert("Please enter the parameters 'gridKey' in the url");
       return;
     }
 
-    contextPath = "/miqrosheet";
+    const contextPath = luckysheet.server.contextPath;
+    // 判断是否授权
+    if (!luckysheet.server.accessToken) {
+      const redirectURL = location.origin + contextPath + "/oauth2/redirect?redirectUri=" + encodeURIComponent(location.href);
+      alert("未授权，即将授权");
+      window.location.href = redirectURL;
+    }
+    console.log("accessToken: " + luckysheet.server.accessToken);
 
     options = {
       container: "luckysheet",
       lang: lang,
       allowUpdate: true,
-      updateImageUrl: location.origin + contextPath + "/api/updateImg",
-      updateUrl: "ws://" + location.host + contextPath + "/websocket/" + sid,
       gridKey: gridKey,
-      loadUrl: location.origin + contextPath + "/api/" + sid + "/load",
-      loadSheetUrl: location.origin + contextPath + "/api/" + sid + "/loadsheet",
+      loadUrl: location.origin + contextPath + "/api/load",
+      loadSheetUrl: location.origin + contextPath + "/api/loadsheet",
+      updateUrl: "ws://" + location.host + contextPath + "/websocket",
+      updateImageUrl: location.origin + contextPath + "/api/updateImg",
     };
 
     options.loading = {
@@ -75,13 +83,15 @@
       },
       imageClass: "loadingAnimation",
     };
+
     options.cellRightClickConfig = {
-      customs: [{
+      /*customs: [{
         title: "test",
         onClick: function(clickEvent, event, params) {
           console.log("function test click", clickEvent, event, params);
         },
-      }],
+      }],*/
+      customs: []
     };
     luckysheet.create(options);
   });
