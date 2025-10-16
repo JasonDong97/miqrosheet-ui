@@ -59,7 +59,7 @@ luckysheet.create = function(setting) {
   if (!extendsetting.gridKey) {
     extendsetting.gridKey = Cookies.get("grid_key");
     if (!extendsetting.gridKey) {
-      alert("The gridKey parameter must be set!");
+      extendsetting.gridKey = 'demo'
     }
   } else {
     Cookies.set("grid_key", extendsetting.gridKey);

@@ -217,6 +217,7 @@ const server = {
       let { message, id } = data;
       // 用户退出时，关闭协同编辑时其提示框
       if (message === "用户退出") {
+        console.log("用户退出");
         $("#luckysheet-multipleRange-show-" + id).hide();
         Store.cooperativeEdit.changeCollaborationSize =
           Store.cooperativeEdit.changeCollaborationSize.filter(value => {
@@ -227,12 +228,14 @@ const server = {
             return value.id != id;
           });
       }
-      if (type == 1) {
+
+      if (type === 1) {
         //send 成功或失败
         const oldIndex = data.data.v.index;
         const sheetToUpdate = Store.luckysheetfile.filter(
           sheet => sheet.index === oldIndex,
         )[0];
+        // 更新自身
         if (sheetToUpdate !== null) {
           setTimeout(() => {
             const index = data.data.i;
@@ -250,17 +253,20 @@ const server = {
             );
           }, 1);
         }
-      } else if (type == 2) {
+      }
+      else if (type === 2) {
         //更新数据
         let item = JSON.parse(data.data);
         _this.wsUpdateMsg(item);
+
         let chang_data = JSON.parse(data.data);
-        if (chang_data.k == "columnlen") {
+        if (chang_data.k === "columnlen") {
           collaborativeEditBox(chang_data.v, null);
-        } else if (chang_data.k == "rowlen") {
+        } else if (chang_data.k === "rowlen") {
           collaborativeEditBox(null, chang_data.v);
         }
-      } else if (type == 3) {
+      }
+      else if (type === 3) {
         //多人操作不同选区("t": "mv")（用不同颜色显示其他人所操作的选区）
         let id = data.id;
         let username = data.username;
@@ -277,12 +283,12 @@ const server = {
         }
         let flag = Store.cooperativeEdit.changeCollaborationSize.some(
           value1 => {
-            return value1.id == id;
+            return value1.id === id;
           },
         );
         if (flag) {
           Store.cooperativeEdit.changeCollaborationSize.forEach(val => {
-            if (val.id == id) {
+            if (val.id === id) {
               val.v = item.v[0] || item.range[0];
               val.i = index;
             }
@@ -294,12 +300,12 @@ const server = {
             i: index,
           });
         }
-        if (getObjType(value) != "array" && getObjType(value) !== "object") {
+        if (getObjType(value) !== "array" && getObjType(value) !== "object") {
           value = JSON.parse(value);
         }
         let r = 0;
         let c = 0;
-        if (index == Store.currentSheetIndex) {
+        if (index === Store.currentSheetIndex) {
           //发送消息者在当前页面
           if (getObjType(value) === "object" && value.op === "enterEdit") {
             r = value.range[value.range.length - 1].row[0];
@@ -342,11 +348,11 @@ const server = {
           }
         }
         let checkoutFlag = Store.cooperativeEdit.checkoutData.some(item => {
-          return item.id == id;
+          return item.id === id;
         });
         if (checkoutFlag) {
           Store.cooperativeEdit.checkoutData.forEach(item => {
-            if (item.id == id) {
+            if (item.id === id) {
               item.username = username;
               item.r = r;
               item.c = c;
@@ -379,9 +385,9 @@ const server = {
 
         //其他客户端切换页面时
         Store.cooperativeEdit.checkoutData.forEach(item => {
-          if (item.index != Store.currentSheetIndex) {
+          if (item.index !== Store.currentSheetIndex) {
             $("#luckysheet-multipleRange-show-" + item.id).hide();
-            item.op == "";
+            item.op = "";
           }
         });
 
@@ -392,7 +398,8 @@ const server = {
             bottom: change_bottom + "px",
           });
         }
-      } else if (type == 4) {
+      }
+      else if (type === 4) {
         //批量指令更新
         // let items = JSON.parse(data.data);
         // After editing by multiple people, data.data may appear as an empty string
@@ -400,11 +407,14 @@ const server = {
         for (let i = 0; i < items.length; i++) {
           _this.wsUpdateMsg(item[i]);
         }
-      } else if (type == 5) {
+      }
+      else if (type === 5) {
         showloading(data.data);
-      } else if (type == 6) {
+      }
+      else if (type === 6) {
         hideloading();
       }
+
     };
 
     //通信发生错误时触发

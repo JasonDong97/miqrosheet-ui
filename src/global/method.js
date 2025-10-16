@@ -513,14 +513,8 @@ const method = {
             var args = Array.prototype.slice.apply(arguments);
             args.shift();
             let ret = luckysheetConfigsetting.hook[hookName].apply(this, args);
-            if(ret===false){
-                return false;
-            }
-            else{
-                return true;
-            }
+            return ret !== false;
         }
-
         return true;
     }
 
