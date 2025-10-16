@@ -6,7 +6,7 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="renderer" content="webkit" />
   <meta name="viewport" content="width=device-width, initial-scale=1,user-scalable=0" />
-  <title>Luckysheet</title>
+  <title>MiQroSheet</title>
 
   <link rel='stylesheet' href='./plugins/css/pluginsCss.css' />
   <link rel='stylesheet' href='./plugins/plugins.css' />
@@ -24,8 +24,7 @@
 
   <div id="luckysheet" style="margin:0px;padding:0px;position:absolute;width:80%;height:500px;left: 20%;top: 200px;bottom:0;right: 0;"></div>
 </div> -->
-
-<div id="luckysheet" style="margin:0px;padding:0px;position:absolute;width:100%;height:100%;left: 0px;top: 0px;">
+<div id="miqrosheet" style="margin:0px;padding:0px;position:absolute;width:100%;height:100%;left: 0px;top: 0px;">
 </div>
 <!-- demo feature, non-production use -->
 <script src="./demoData/demoFeature.js"></script>
@@ -45,30 +44,19 @@
   $(function() {
     // According to the browser language
     var lang = luckysheetDemoUtil.language() === "zh" ? "zh" : "en";
-    var gridKey = luckysheetDemoUtil.getRequest().gridKey; // workbook id for collaborative editing, or directly define
     var options = null;
-
-    // test
-    gridKey = "1040ebbb101f44f5b2759983dafc652e";
-    if (!gridKey) {
-      alert("Please enter the parameters 'gridKey' in the url");
-      return;
-    }
 
     const contextPath = luckysheet.server.contextPath;
     // 判断是否授权
     if (!luckysheet.server.accessToken) {
-      const redirectURL = location.origin + contextPath + "/oauth2/redirect?redirectUri=" + encodeURIComponent(location.href);
-      alert("未授权，即将授权");
-      window.location.href = redirectURL;
+      window.location.href = location.origin + contextPath + "/oauth2/authorize";
     }
     console.log("accessToken: " + luckysheet.server.accessToken);
-
     options = {
-      container: "luckysheet",
+      container: "miqrosheet",
       lang: lang,
       allowUpdate: true,
-      gridKey: gridKey,
+      gridKey: luckysheetDemoUtil.getRequest().gridKey,
       loadUrl: location.origin + contextPath + "/api/load",
       loadSheetUrl: location.origin + contextPath + "/api/loadsheet",
       updateUrl: "ws://" + location.host + contextPath + "/websocket",

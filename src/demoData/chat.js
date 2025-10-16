@@ -1,7 +1,7 @@
 export function initChat() {
-    if (!isNeedChat()) {
-        return
-    }
+    // if (!isNeedChat()) {
+    //     return
+    // }
 
     // Your CSS as text
     let styles = `
@@ -345,7 +345,6 @@ function isNeedChat() {
     if (needChatHosts.includes(host)) {
         return true
     }
-
     return false
 }
 
