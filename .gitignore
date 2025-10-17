@@ -10,3 +10,5 @@ src/expendPlugins/print/print.js
 .history
 .vs
 .vscode
+
+dist.tgz
