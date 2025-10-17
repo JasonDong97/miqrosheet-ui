@@ -230,6 +230,11 @@ const server = {
       }
 
       if (type === 1) {
+        // 如果 status == 1, 说明执行失败，提示用户并刷新页面
+        if (1 === data.status) {
+            alert("执行失败");
+            window.location.reload();
+        }
         //send 成功或失败
         const oldIndex = data.data.v.index;
         const sheetToUpdate = Store.luckysheetfile.filter(
@@ -436,7 +441,7 @@ const server = {
         clearInterval(_this.retryTimer);
         _this.retryTimer = null;
       } else {
-        alert(locale().websocket.contact);
+        showloading(locale().websocket.refresh);
       }
     };
 

@@ -49,7 +49,9 @@
     const contextPath = luckysheet.server.contextPath;
     // 判断是否授权
     if (!luckysheet.server.accessToken) {
+      alert('请进行 OAuth2 授权认证');
       window.location.href = location.origin + contextPath + "/oauth2/authorize";
+      return;
     }
 
     options = {
