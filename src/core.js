@@ -44,6 +44,12 @@ let luckysheet = {};
 
 luckysheet = common_extend(api, luckysheet);
 
+luckysheet.setGridKey = function(gridKey) {
+  if (gridKey) {
+    Cookies.set("grid_key", gridKey);
+  }
+};
+
 //创建luckysheet表格
 luckysheet.create = function(setting) {
   method.destroy();
@@ -56,10 +62,13 @@ luckysheet.create = function(setting) {
   }
 
   let extendsetting = common_extend(defaultSetting, setting);
+  let gridKey = Cookies.get("grid_key");
   if (!extendsetting.gridKey) {
-    extendsetting.gridKey = Cookies.get("grid_key");
-    if (!extendsetting.gridKey) {
-      extendsetting.gridKey = 'demo'
+    if (gridKey) {
+      extendsetting.gridKey = gridKey;
+    } else {
+      alert("gridKey 参数不存在！");
+      return;
     }
   } else {
     Cookies.set("grid_key", extendsetting.gridKey);

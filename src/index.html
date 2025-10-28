@@ -45,6 +45,9 @@
     // According to the browser language
     var lang = luckysheetDemoUtil.language() === "zh" ? "zh" : "en";
     var options = null;
+    let gridKey = luckysheetDemoUtil.getRequest().gridKey;
+    luckysheet.setGridKey(gridKey);
+
 
     const contextPath = luckysheet.server.contextPath;
     // 判断是否授权
@@ -58,7 +61,7 @@
       container: "miqrosheet",
       lang: lang,
       allowUpdate: true,
-      gridKey: luckysheetDemoUtil.getRequest().gridKey,
+      gridKey: gridKey,
       loadUrl: location.origin + contextPath + "/api/load",
       loadSheetUrl: location.origin + contextPath + "/api/loadsheet",
       updateUrl: "ws://" + location.host + contextPath + "/websocket",
@@ -81,7 +84,7 @@
           console.log("function test click", clickEvent, event, params);
         },
       }],*/
-      customs: []
+      customs: [],
     };
     luckysheet.create(options);
   });
