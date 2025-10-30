@@ -129,11 +129,15 @@ function clean() {
 }
 
 // proxy middleware
-const apiProxy = createProxyMiddleware("/miqrosheet/", {
-  target: "http://localhost:8081/", // set your server address
-  changeOrigin: true, // for vhosted sites
-  ws: true, // proxy websockets
-});
+const apiProxy = createProxyMiddleware(
+  "/miqrosheet/",
+  {
+    target: "http://localhost:8081/", // set your server address
+    //target: "http://10.36.160.33:20080", // set your server address
+    changeOrigin: true, // for vhosted sites
+    ws: true, // proxy websockets
+  },
+);
 
 // Static server
 function serve(done) {

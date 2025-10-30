@@ -22,6 +22,13 @@ import { customImageUpdate } from "./imageUpdateCtrl";
 import method from "../global/method";
 import Cookies from "js-cookie";
 
+function safeParseJson(obj) {
+  try {
+    return JSON.parse(obj);
+  } catch (e) {
+    return obj;
+  }
+}
 
 const server = {
   gridKey: null,
@@ -95,7 +102,7 @@ const server = {
       return;
     }
 
-    if (value == undefined) {
+    if (value === undefined) {
       value = null;
     }
 
@@ -108,7 +115,6 @@ const server = {
     if (type === "shs") {
       return;
     }
-
     if (type == "rv") {
       //单元格批量更新
       d.range = params.range;
@@ -142,7 +148,8 @@ const server = {
     // TODO 配置自定义方式同步图片
     const customImageUpdateMethodConfig =
       luckysheetConfigsetting.imageUpdateMethodConfig;
-    if (JSON.stringify(customImageUpdateMethodConfig) !== "{}") {
+    var config = JSON.stringify(customImageUpdateMethodConfig);
+    if (config !== "{}") {
       if ("images" != d.k) {
         let msg = pako.gzip(encodeURIComponent(JSON.stringify(d)), {
           to: "string",
@@ -165,6 +172,7 @@ const server = {
           });
       }
     } else {
+      console.log("send: ", d);
       let msg = pako.gzip(encodeURIComponent(JSON.stringify(d)), {
         to: "string",
       });
@@ -186,7 +194,6 @@ const server = {
       alert(locale().websocket.support);
       return;
     }
-
     let wsUrl;
     let params = "t=" + _this.accessToken + "&g=" + encodeURIComponent(_this.gridKey);
     if (_this.updateUrl.indexOf("?") > -1) {
@@ -204,17 +211,18 @@ const server = {
       //防止websocket长时间不发送消息导致断连
       _this.retryTimer = setInterval(function() {
         _this.websocket.send("rub");
-      }, 60000);
+      }, 10000);
     };
-
     //客户端接收服务端数据时触发
     _this.websocket.onmessage = function(result) {
       Store.result = result;
-      let data = new Function("return " + result.data)();
-      method.createHookFunction("cooperativeMessage", data);
-      console.log(data);
-      let type = data.type;
-      let { message, id } = data;
+      let msg = safeParseJson(result.data);
+      let { type, data } = msg;
+      data = safeParseJson(data);
+      let { t, i, k, v } = data;
+
+      method.createHookFunction("cooperativeMessage", msg);
+      let { message, id } = msg;
       // 用户退出时，关闭协同编辑时其提示框
       if (message === "用户退出") {
         console.log("用户退出");
@@ -229,26 +237,35 @@ const server = {
           });
       }
 
+      // 自己发送的消息, 进行确认, 失败后重新刷新页面
       if (type === 1) {
-        // 如果 status == 1, 说明执行失败，提示用户并刷新页面
-        if (1 === data.status) {
-            alert("执行失败");
-            window.location.reload();
+        if (1 === msg.status) {
+          alert("执行失败");
+          window.location.reload();
         }
-        //send 成功或失败
-        const oldIndex = data.data.v.index;
+        if (t === "mv") {
+          return;
+        }
+        if (!v) {
+          console.log("没有 v 属性:", msg.data);
+          return;
+        }
+        const oldIndex = msg.data.v.index;
+        if (!oldIndex) {
+          return;
+        }
         const sheetToUpdate = Store.luckysheetfile.filter(
           sheet => sheet.index === oldIndex,
         )[0];
         // 更新自身
         if (sheetToUpdate !== null) {
           setTimeout(() => {
-            const index = data.data.i;
+            const index = msg.data.i;
             sheetToUpdate.index = index;
             Store.currentSheetIndex = index;
-
-            $(`#luckysheet-sheets-item${oldIndex}`).attr("data-index", index);
-            $(`#luckysheet-sheets-item${oldIndex}`).prop(
+            let oldIndexElement = $(`#luckysheet-sheets-item${oldIndex}`);
+            oldIndexElement.attr("data-index", index);
+            oldIndexElement.prop(
               "id",
               `luckysheet-sheets-item${index}`,
             );
@@ -259,26 +276,20 @@ const server = {
           }, 1);
         }
       }
+      // 多人协同操作,更新表格
       else if (type === 2) {
         //更新数据
-        let item = JSON.parse(data.data);
-        _this.wsUpdateMsg(item);
-
-        let chang_data = JSON.parse(data.data);
-        if (chang_data.k === "columnlen") {
-          collaborativeEditBox(chang_data.v, null);
-        } else if (chang_data.k === "rowlen") {
-          collaborativeEditBox(null, chang_data.v);
-        }
+        _this.wsUpdateMsg(data);
       }
+      // 多人操作不同选区("t": "mv")（用不同颜色显示其他人所操作的选区）
       else if (type === 3) {
-        //多人操作不同选区("t": "mv")（用不同颜色显示其他人所操作的选区）
-        let id = data.id;
-        let username = data.username;
-        let item = JSON.parse(data.data);
-        let type = item.t,
-          index = item.i,
-          value = item.v;
+        let id = msg.id;
+        let username = msg.username;
+        let item = data;
+        let type = t,
+          index = i,
+          value = v;
+
         if (Store.cooperativeEdit.changeCollaborationSize.length === 0) {
           Store.cooperativeEdit.changeCollaborationSize.push({
             id: id,
@@ -286,23 +297,25 @@ const server = {
             i: index,
           });
         }
+
         let flag = Store.cooperativeEdit.changeCollaborationSize.some(
           value1 => {
             return value1.id === id;
           },
         );
+
         if (flag) {
           Store.cooperativeEdit.changeCollaborationSize.forEach(val => {
             if (val.id === id) {
-              val.v = item.v[0] || item.range[0];
-              val.i = index;
+              val.v = v[0] || v.range[0];
+              val.i = i;
             }
           });
         } else {
           Store.cooperativeEdit.changeCollaborationSize.push({
             id: id,
-            v: item.v[0],
-            i: index,
+            v: v[0],
+            i: i,
           });
         }
         if (getObjType(value) !== "array" && getObjType(value) !== "object") {
@@ -404,75 +417,59 @@ const server = {
           });
         }
       }
+      // 批量指令更新
       else if (type === 4) {
-        //批量指令更新
-        // let items = JSON.parse(data.data);
-        // After editing by multiple people, data.data may appear as an empty string
-        let items = data.data === "" ? data.data : JSON.parse(data.data);
+        let items = msg.data;
         for (let i = 0; i < items.length; i++) {
-          _this.wsUpdateMsg(item[i]);
+          _this.wsUpdateMsg(items[i]);
         }
       }
+      // 处理错误
       else if (type === 5) {
-        showloading(data.data);
+        showloading(msg.data);
       }
+      // 隐藏 loadding, 未使用
       else if (type === 6) {
         hideloading();
       }
+    };
 
+    // 重新
+    let reOpen = function(e) {
+      console.log(e);
+      _this.wxErrorCount++;
+      showloading(locale().websocket.refresh);
+      if (_this.wxErrorCount > 3) {
+        console.log("websocket 连接异常");
+        clearInterval(_this.retryTimer);
+        return;
+      }
+      _this.openWebSocket();
     };
 
     //通信发生错误时触发
-    _this.websocket.onerror = function() {
-      _this.wxErrorCount++;
-
-      if (_this.wxErrorCount > 3) {
-        showloading(locale().websocket.refresh);
-      } else {
-        showloading(locale().websocket.wait);
-        _this.openWebSocket();
-      }
+    _this.websocket.onerror = function(e) {
+      reOpen(e);
     };
-
     //连接关闭时触发
     _this.websocket.onclose = function(e) {
-      console.info(locale().websocket.close);
-      if (e.code === 1000) {
-        clearInterval(_this.retryTimer);
-        _this.retryTimer = null;
-      } else {
-        showloading(locale().websocket.refresh);
-      }
+      reOpen(e);
     };
-
   },
+  // 更新消息
   wsUpdateMsg: function(item) {
     let type = item.t,
       index = item.i,
       value = item.v;
+    console.log(item)
     let file = Store.luckysheetfile[getSheetIndex(index)];
-    if (
-      [
-        "v",
-        "rv",
-        "cg",
-        "all",
-        "fc",
-        "drc",
-        "arc",
-        "f",
-        "fsc",
-        "fsr",
-        "sh",
-        "c",
-      ].includes(type) &&
-      file == null
-    ) {
+    console.log("file: ", file);
+    if (file == null) {
       return;
     }
+    //单个单元格数据更新
+    if (type === "v") {
 
-    if (type == "v") {
-      //单个单元格数据更新
       if (file.data == null || file.data.length == 0) {
         return;
       }
@@ -497,8 +494,9 @@ const server = {
           luckysheetrefreshgrid();
         }, 1);
       }
-    } else if (type == "rv") {
-      //范围单元格数据更新
+    }
+    //范围单元格数据更新
+    else if (type === "rv" ) {
       if (Object.keys(item.range).length > 0) {
         Store.cooperativeEdit.merge_range = item.range;
         Store.cooperativeEdit.merge_range.v = item.v;
@@ -519,7 +517,7 @@ const server = {
         }
       }
 
-      if (index == Store.currentSheetIndex) {
+      if (index === Store.currentSheetIndex) {
         //更新数据为当前表格数据
         Store.flowdata = file.data;
         editor.webWorkerFlowDataCache(Store.flowdata); //worker存数据
@@ -542,8 +540,10 @@ const server = {
           luckysheetrefreshgrid();
         }, 1);
       }
-    } else if (type == "cg") {
-      //config更新（rowhidden，rowlen，columnlen，merge，borderInfo）
+    }
+    //config更新（rowhidden，rowlen，columnlen，merge，borderInfo）
+    else if (type === "cg") {
+
       let k = item.k;
 
       if (k == "borderInfo") {
@@ -581,8 +581,9 @@ const server = {
           luckysheetrefreshgrid();
         }, 1);
       }
-    } else if (type == "all") {
-      //通用保存更新
+    }
+    //通用保存更新
+    else if (type === "all") {
       let k = item.k;
       file[k] = value;
 
@@ -705,8 +706,10 @@ const server = {
           hyperlinkCtrl.init();
         }
       }
-    } else if (type == "fc") {
-      //函数链calc
+    }
+    //函数链calc
+    else if (type === "fc") {
+
       let op = item.op,
         pos = item.pos;
 
@@ -743,8 +746,10 @@ const server = {
       setTimeout(function() {
         luckysheetrefreshgrid();
       }, 1);
-    } else if (type == "drc") {
-      //删除行列
+    }
+    //删除行列
+    else if (type === "drc") {
+
       if (file.data == null || file.data.length == 0) {
         return;
       }
@@ -807,8 +812,10 @@ const server = {
           luckysheetrefreshgrid();
         }, 1);
       }
-    } else if (type == "arc") {
-      //增加行列
+    }
+    //增加行列
+    else if (type === "arc") {
+
       if (file.data == null || file.data.length == 0) {
         return;
       }
@@ -899,8 +906,10 @@ const server = {
           luckysheetrefreshgrid();
         }, 1);
       }
-    } else if (type == "f") {
-      //筛选
+    }
+    //筛选
+    else if (type === "f") {
+
       let op = item.op,
         pos = item.pos;
 
@@ -919,8 +928,9 @@ const server = {
       if (index == Store.currentSheetIndex) {
         createFilterOptions(file.filter_select, filter);
       }
-    } else if (type == "fsc") {
-      //清除筛选
+    }
+    //清除筛选
+    else if (type == "fsc") {
       file.filter = null;
       file.filter_select = null;
 
@@ -933,16 +943,18 @@ const server = {
         ).remove();
         $("#luckysheet-filter-menu, #luckysheet-filter-submenu").hide();
       }
-    } else if (type == "fsr") {
-      //恢复筛选
+    }
+    //恢复筛选
+    else if (type == "fsr") {
       file.filter = value.filter;
       file.filter_select = value.filter_select;
 
       if (index == Store.currentSheetIndex) {
         createFilterOptions(file.filter_select, file.filter);
       }
-    } else if (type == "sha") {
-      //新建sheet
+    }
+    // 新建sheet
+    else if (type == "sha") {
       Store.luckysheetfile.push(value);
 
       let colorset = "";
@@ -970,7 +982,9 @@ const server = {
 
       // *添加sheet之后,要判断是否需要显示sheet滚动按钮
       sheetmanage.locationSheet();
-    } else if (type == "shc") {
+    }
+    //新建sheet
+    else if (type == "shc") {
       //复制sheet
       let copyindex = value.copyindex,
         name = value.name;
@@ -999,8 +1013,10 @@ const server = {
         copyjson.index +
         "\" class=\"luckysheet-datavisual-selection-set\"></div>",
       );
-    } else if (type == "shd") {
-      //删除sheet
+    }
+    //删除sheet
+    else if (type === "shd") {
+
       for (let i = 0; i < Store.luckysheetfile.length; i++) {
         if (Store.luckysheetfile[i].index == value.deleIndex) {
           // 如果删除的是当前sheet，则切换到前一个sheet页
@@ -1045,13 +1061,17 @@ const server = {
       $("#luckysheet-sheets-item" + value.deleIndex).remove();
       $("#luckysheet-datavisual-selection-set-" + value.deleIndex).remove();
       sheetmanage.locationSheet();
-    } else if (type == "shr") {
-      //sheet位置
+    }
+    //sheet位置
+    else if (type === "shr") {
+
       for (let x in value) {
         Store.luckysheetfile[getSheetIndex(x)].order = value[x];
       }
-    } else if (type == "shre") {
-      //删除sheet恢复操作
+    }
+    //删除sheet恢复操作
+    else if (type === "shre") {
+
       for (let i = 0; i < server.sheetDeleSave.length; i++) {
         if (server.sheetDeleSave[i].index == value.reIndex) {
           let datav = server.sheetDeleSave[i];
@@ -1083,8 +1103,10 @@ const server = {
           break;
         }
       }
-    } else if (type == "sh") {
-      //隐藏sheet
+    }
+    //隐藏sheet
+    else if (type === "sh") {
+
       let op = item.op,
         cur = item.cur;
 
@@ -1103,8 +1125,10 @@ const server = {
         $("#luckysheet-sheets-item" + index).show();
       }
       sheetmanage.locationSheet();
-    } else if (type == "c") {
-      //图表操作 TODO
+    }
+    //图表操作 TODO
+    else if (type === "c") {
+
       let op = item.op,
         cid = item.cid;
 
@@ -1179,8 +1203,9 @@ const server = {
           }
         }
       }
-    } else if (type == "na") {
-      //表格名称
+    }
+    //表格名称
+    else if (type === "na") {
       $("#luckysheet_info_detail_input")
         .val(value)
         .css("width", getByteLen(value) * 10);
