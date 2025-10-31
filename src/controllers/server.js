@@ -181,7 +181,7 @@ const server = {
       }
     }
   },
-  websocket: null,
+  websocket:null,
   wxErrorCount: 0,
   // 设置 contextPath 和 accessToken，方便在插件中调用接口
   contextPath: "/miqrosheet",
@@ -203,10 +203,10 @@ const server = {
         wsUrl = _this.updateUrl + "?" + params;
       }
       // 连接WebSocket服务器
-      _this.websocket = new WebSocket(wsUrl);
+      return new WebSocket(wsUrl);
     };
     // 连接 websocket
-    connect();
+    this.websocket = connect();
 
     //连接建立时触发
     _this.websocket.onopen = () => {
@@ -278,21 +278,9 @@ const server = {
         let index = i,
           value = v;
 
-        if (Store.cooperativeEdit.changeCollaborationSize.length === 0) {
-          Store.cooperativeEdit.changeCollaborationSize.push({
-            id: id,
-            v: item.v[0],
-            i: index,
-          });
-        }
+        let exist = Store.cooperativeEdit.changeCollaborationSize.some(value1 => value1.id == id);
 
-        let flag = Store.cooperativeEdit.changeCollaborationSize.some(
-          value1 => {
-            return value1.id === id;
-          },
-        );
-
-        if (flag) {
+        if (exist) {
           Store.cooperativeEdit.changeCollaborationSize.forEach(val => {
             if (val.id === id) {
               val.v = v[0] || v.range[0];
@@ -306,12 +294,11 @@ const server = {
             i: i,
           });
         }
-        if (getObjType(value) !== "array" && getObjType(value) !== "object") {
-          value = JSON.parse(value);
-        }
+
         let r = 0;
         let c = 0;
-        if (index === Store.currentSheetIndex) {
+
+        if (index.toString() === Store.currentSheetIndex.toString()) {
           //发送消息者在当前页面
           if (getObjType(value) === "object" && value.op === "enterEdit") {
             r = value.range[value.range.length - 1].row[0];
@@ -353,10 +340,10 @@ const server = {
             });
           }
         }
-        let checkoutFlag = Store.cooperativeEdit.checkoutData.some(item => {
-          return item.id === id;
-        });
-        if (checkoutFlag) {
+
+        let checkoutDataExist = Store.cooperativeEdit.checkoutData.some(item => item.id === id);
+
+        if (checkoutDataExist) {
           Store.cooperativeEdit.checkoutData.forEach(item => {
             if (item.id === id) {
               item.username = username;

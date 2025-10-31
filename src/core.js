@@ -278,4 +278,6 @@ luckysheet.getConditionFormatCells = getConditionFormatCells;
 
 luckysheet.server = server;
 
+luckysheet.store = Store;
+
 export { luckysheet };
