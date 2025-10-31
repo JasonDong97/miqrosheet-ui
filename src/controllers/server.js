@@ -189,22 +189,27 @@ const server = {
   openWebSocket: function() {
     let _this = this;
 
-    // 判断当前浏览器是否支持 WebSocket
-    if (!("WebSocket" in window)) {
-      alert(locale().websocket.support);
-      return;
-    }
-    let wsUrl;
-    let params = "t=" + _this.accessToken + "&g=" + encodeURIComponent(_this.gridKey);
-    if (_this.updateUrl.indexOf("?") > -1) {
-      wsUrl = _this.updateUrl + "&" + params;
-    } else {
-      wsUrl = _this.updateUrl + "?" + params;
-    }
-    // 连接WebSocket服务器
-    _this.websocket = new WebSocket(wsUrl);
+    const connect = () => {
+      // 判断当前浏览器是否支持 WebSocket
+      if (!("WebSocket" in window)) {
+        alert(locale().websocket.support);
+        return;
+      }
+      let wsUrl;
+      let params = "t=" + _this.accessToken + "&g=" + encodeURIComponent(_this.gridKey);
+      if (_this.updateUrl.indexOf("?") > -1) {
+        wsUrl = _this.updateUrl + "&" + params;
+      } else {
+        wsUrl = _this.updateUrl + "?" + params;
+      }
+      // 连接WebSocket服务器
+      _this.websocket = new WebSocket(wsUrl);
+    };
+    // 连接 websocket
+    connect();
+
     //连接建立时触发
-    _this.websocket.onopen = function() {
+    _this.websocket.onopen = () => {
       console.info(locale().websocket.success);
       hideloading();
       _this.wxErrorCount = 0;
@@ -214,28 +219,13 @@ const server = {
       }, 10000);
     };
     //客户端接收服务端数据时触发
-    _this.websocket.onmessage = function(result) {
+    _this.websocket.onmessage = result => {
       Store.result = result;
       let msg = safeParseJson(result.data);
-      let { type, data } = msg;
-      data = safeParseJson(data);
+      let { id, type, username, message } = msg;
+      let data = safeParseJson(msg.data);
       let { t, i, k, v } = data;
-
       method.createHookFunction("cooperativeMessage", msg);
-      let { message, id } = msg;
-      // 用户退出时，关闭协同编辑时其提示框
-      if (message === "用户退出") {
-        console.log("用户退出");
-        $("#luckysheet-multipleRange-show-" + id).hide();
-        Store.cooperativeEdit.changeCollaborationSize =
-          Store.cooperativeEdit.changeCollaborationSize.filter(value => {
-            return value.id != id;
-          });
-        Store.cooperativeEdit.checkoutData =
-          Store.cooperativeEdit.checkoutData.filter(value => {
-            return value.id != id;
-          });
-      }
 
       // 自己发送的消息, 进行确认, 失败后重新刷新页面
       if (type === 1) {
@@ -247,10 +237,9 @@ const server = {
           return;
         }
         if (!v) {
-          console.log("没有 v 属性:", msg.data);
           return;
         }
-        const oldIndex = msg.data.v.index;
+        const oldIndex = v.index;
         if (!oldIndex) {
           return;
         }
@@ -283,11 +272,10 @@ const server = {
       }
       // 多人操作不同选区("t": "mv")（用不同颜色显示其他人所操作的选区）
       else if (type === 3) {
-        let id = msg.id;
-        let username = msg.username;
+        //let id = msg.id;
+        //let username = msg.username;
         let item = data;
-        let type = t,
-          index = i,
+        let index = i,
           value = v;
 
         if (Store.cooperativeEdit.changeCollaborationSize.length === 0) {
@@ -402,20 +390,21 @@ const server = {
         }
 
         //其他客户端切换页面时
-        Store.cooperativeEdit.checkoutData.forEach(item => {
-          if (item.index !== Store.currentSheetIndex) {
-            $("#luckysheet-multipleRange-show-" + item.id).hide();
-            item.op = "";
-          }
-        });
-
-        if ($("#luckysheet-multipleRange-show-" + id)[0]) {
-          let change_bottom =
-            $("#luckysheet-multipleRange-show-" + id)[0].offsetHeight - 1;
-          $("#luckysheet-multipleRange-show-" + id + ">.username").css({
-            bottom: change_bottom + "px",
-          });
-        }
+        // Store.cooperativeEdit.checkoutData.forEach(item => {
+        //   if (item.index !== Store.currentSheetIndex) {
+        //     $("#luckysheet-multipleRange-show-" + item.id).hide();
+        //     item.op = "";
+        //   }
+        // });
+        //
+        // if ($("#luckysheet-multipleRange-show-" + id)[0]) {
+        //   let change_bottom =
+        //     $("#luckysheet-multipleRange-show-" + id)[0].offsetHeight - 1;
+        //   $("#luckysheet-multipleRange-show-" + id + ">.username").css({
+        //     bottom: change_bottom + "px",
+        //   });
+        // }
+        collaborativeEditBox();
       }
       // 批量指令更新
       else if (type === 4) {
@@ -428,14 +417,16 @@ const server = {
       else if (type === 5) {
         showloading(msg.data);
       }
-      // 隐藏 loadding, 未使用
+      // 用户退出
       else if (type === 6) {
-        hideloading();
+        $("#luckysheet-multipleRange-show-" + id).hide();
+        Store.cooperativeEdit.changeCollaborationSize = Store.cooperativeEdit.changeCollaborationSize.filter(value => value.id !== id);
+        Store.cooperativeEdit.checkoutData = Store.cooperativeEdit.checkoutData.filter(value => value.id !== id);
       }
     };
 
     // 重新
-    let reOpen = function(e) {
+    let reOpen = e => {
       console.log(e);
       _this.wxErrorCount++;
       showloading(locale().websocket.refresh);
@@ -461,16 +452,15 @@ const server = {
     let type = item.t,
       index = item.i,
       value = item.v;
-    console.log(item)
+    console.log("receive: ", item);
     let file = Store.luckysheetfile[getSheetIndex(index)];
-    console.log("file: ", file);
     if (file == null) {
       return;
     }
     //单个单元格数据更新
     if (type === "v") {
 
-      if (file.data == null || file.data.length == 0) {
+      if (file.data == null || file.data.length === 0) {
         return;
       }
 
@@ -478,7 +468,7 @@ const server = {
         c = item.c;
       file.data[r][c] = value;
 
-      if (index == Store.currentSheetIndex) {
+      if (index === Store.currentSheetIndex) {
         //更新数据为当前表格数据
         Store.flowdata = file.data;
         editor.webWorkerFlowDataCache(Store.flowdata); //worker存数据
@@ -496,13 +486,13 @@ const server = {
       }
     }
     //范围单元格数据更新
-    else if (type === "rv" ) {
+    else if (type === "rv") {
       if (Object.keys(item.range).length > 0) {
         Store.cooperativeEdit.merge_range = item.range;
         Store.cooperativeEdit.merge_range.v = item.v;
         collaborativeEditBox();
       }
-      if (file.data == null || file.data.length == 0) {
+      if (file.data == null || file.data.length === 0) {
         return;
       }
 
@@ -930,7 +920,7 @@ const server = {
       }
     }
     //清除筛选
-    else if (type == "fsc") {
+    else if (type === "fsc") {
       file.filter = null;
       file.filter_select = null;
 
@@ -945,7 +935,7 @@ const server = {
       }
     }
     //恢复筛选
-    else if (type == "fsr") {
+    else if (type === "fsr") {
       file.filter = value.filter;
       file.filter_select = value.filter_select;
 
@@ -954,7 +944,7 @@ const server = {
       }
     }
     // 新建sheet
-    else if (type == "sha") {
+    else if (type === "sha") {
       Store.luckysheetfile.push(value);
 
       let colorset = "";
@@ -984,7 +974,7 @@ const server = {
       sheetmanage.locationSheet();
     }
     //新建sheet
-    else if (type == "shc") {
+    else if (type === "shc") {
       //复制sheet
       let copyindex = value.copyindex,
         name = value.name;
