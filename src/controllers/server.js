@@ -181,7 +181,7 @@ const server = {
       }
     }
   },
-  websocket:null,
+  websocket: null,
   wxErrorCount: 0,
   // 设置 contextPath 和 accessToken，方便在插件中调用接口
   contextPath: "/miqrosheet",
@@ -224,7 +224,7 @@ const server = {
       let msg = safeParseJson(result.data);
       let { id, type, username, message } = msg;
       let data = safeParseJson(msg.data);
-      let { t, i, k, v } = data;
+      let { t, i, k, v } = data || {};
       method.createHookFunction("cooperativeMessage", msg);
 
       // 自己发送的消息, 进行确认, 失败后重新刷新页面
@@ -264,14 +264,16 @@ const server = {
             );
           }, 1);
         }
+        return;
       }
       // 多人协同操作,更新表格
-      else if (type === 2) {
+      if (type === 2) {
         //更新数据
         _this.wsUpdateMsg(data);
+        return;
       }
       // 多人操作不同选区("t": "mv")（用不同颜色显示其他人所操作的选区）
-      else if (type === 3) {
+      if (type === 3) {
         //let id = msg.id;
         //let username = msg.username;
         let item = data;
@@ -392,20 +394,23 @@ const server = {
         //   });
         // }
         collaborativeEditBox();
+        return;
       }
       // 批量指令更新
-      else if (type === 4) {
+      if (type === 4) {
         let items = msg.data;
         for (let i = 0; i < items.length; i++) {
           _this.wsUpdateMsg(items[i]);
         }
+        return;
       }
       // 处理错误
-      else if (type === 5) {
+      if (type === 5) {
         showloading(msg.data);
+        return;
       }
       // 用户退出
-      else if (type === 6) {
+      if (type === 6) {
         $("#luckysheet-multipleRange-show-" + id).hide();
         Store.cooperativeEdit.changeCollaborationSize = Store.cooperativeEdit.changeCollaborationSize.filter(value => value.id !== id);
         Store.cooperativeEdit.checkoutData = Store.cooperativeEdit.checkoutData.filter(value => value.id !== id);
